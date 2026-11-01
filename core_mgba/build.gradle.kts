@@ -5,7 +5,7 @@ plugins {
 // The mgba libretro core, alone, as an on-demand feature module. It has no code: just
 // src/main/jniLibs/arm64-v8a/libmgba_libretro_android.so, which scripts/fetch-cores.sh fetches.
 android {
-    namespace = "dev.titanslot.core.mgba"
+    namespace = "dev.patchboy.core.mgba"
     compileSdk = 36
 
     defaultConfig {

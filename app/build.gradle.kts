@@ -9,29 +9,29 @@ plugins {
 
 // Release signing, kept out of the repository. Point at a properties file holding
 //   storeFile, storePassword, keyAlias, keyPassword
-// with -Ptitanslot.signing=/path/to/signing.properties, or put one at ./keystore.properties.
+// with -Ppatchboy.signing=/path/to/signing.properties, or put one at ./keystore.properties.
 // Without either, release builds come out unsigned.
-val releaseSigning: Properties? = ((findProperty("titanslot.signing") as String?)?.let(::file)
+val releaseSigning: Properties? = ((findProperty("patchboy.signing") as String?)?.let(::file)
     ?: rootProject.file("keystore.properties"))
     .takeIf { it.isFile }
     ?.let { f -> Properties().apply { f.inputStream().use(::load) } }
 
 android {
-    namespace = "dev.titanslot"
+    namespace = "dev.patchboy"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "dev.titanslot"
+        applicationId = "dev.patchboy"
         minSdk = 30
         targetSdk = 36
-        versionCode = 2
-        versionName = "0.2.0"
-        // The Titan 2 Elite is arm64, and so are the libretro cores.
+        versionCode = 1
+        versionName = "0.1.0"
+        // The libretro cores are arm64 builds, which covers nearly every phone still in use.
         ndk { abiFilters += "arm64-v8a" }
     }
 
     // Where the emulator cores come from. Neither flavour has them in the base APK: the setup
-    // wizard installs them (dev.titanslot.core.Delivery, one per flavour).
+    // wizard installs them (dev.patchboy.core.Delivery, one per flavour).
     flavorDimensions += "distribution"
     productFlavors {
         // Google Play. Play doesn't allow downloading native code from anywhere else, so each
@@ -76,7 +76,7 @@ android {
 
     lint {
         // Versions are pinned to the newest set that works with AGP 8.13 (AndroidX 2026
-        // releases want AGP 9), and the app only targets the Titan's arm64 SoC.
+        // releases want AGP 9), and the app only ships arm64 cores.
         disable += setOf(
             "GradleDependency",
             "NewerVersionAvailable",

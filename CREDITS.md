@@ -1,6 +1,14 @@
 # Credits and acknowledgements
 
-Titan Slot stands on a lot of other people's work. Thank you to everyone below.
+PatchBoy stands on a lot of other people's work. Thank you to everyone below.
+
+## Titan Slot
+
+**[github.com/sp3lllz/titan-slot](https://github.com/sp3lllz/titan-slot)** · GPL-3.0
+
+PatchBoy is a fork of Titan Slot, the same shelf built for the Unihertz Titan 2 Elite's
+keyboard. PatchBoy adds the on-screen touch controls, portrait and landscape play and
+touch-friendly menus. Everything below credits work that Titan Slot brought in.
 
 ## slot, by Brandon Kowalski
 
@@ -15,13 +23,13 @@ Taken from slot, or closely following it:
 - **Cartridge outlines and moulding**: the GBA, Game Boy (DMG) and Game Boy Color silhouettes,
   ridges, cuts and gloss are slot's SVG path data (`crates/slot-ui/assets/cart.svg`,
   `gb_cart.svg`, `gbc_cart.svg` and their `*_detail.svg`), redrawn in
-  [`CartArt.kt`](app/src/main/java/dev/titanslot/ui/CartArt.kt).
+  [`CartArt.kt`](app/src/main/java/dev/patchboy/ui/CartArt.kt).
 - **Cart plastics**: the shell colour tables that give Pokémon Ruby, Crystal, Kirby and others
   their real colours, from `crates/slot-ui/src/shell.rs`
-  ([`Shells.kt`](app/src/main/java/dev/titanslot/data/Shells.kt)).
+  ([`Shells.kt`](app/src/main/java/dev/patchboy/data/Shells.kt)).
 - **The carousel**: the critically damped spring, side cart scale and fade, wrap-around, letter
   jumping and accelerating key repeat, from `crates/slot-ui/src/shelf.rs`
-  ([`ShelfModel.kt`](app/src/main/java/dev/titanslot/app/ShelfModel.kt)).
+  ([`ShelfModel.kt`](app/src/main/java/dev/patchboy/app/ShelfModel.kt)).
 - **The slot and the insert**: the socket's housing, lip, slit and scoop, and the insert travel
   (ease to the catch, creep, push home), from `crates/slot-ui/src/slot_chrome.rs`.
 - **The theme**: housing, recess, opening and edge colours, and menu inks

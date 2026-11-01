@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Downloads the two libretro cores Titan Slot runs, as arm64 Android builds from the official
+# Downloads the two libretro cores PatchBoy runs, as arm64 Android builds from the official
 # libretro buildbot, into their on-demand feature modules (core_gambatte, core_mgba). The Play
 # bundle needs them there; direct builds download the same files on the phone during setup.
 #
@@ -7,7 +7,7 @@
 #   BUILDBOT=<url> scripts/fetch-cores.sh
 #
 # Android only extracts native libraries named lib*.so, so each core is renamed with a
-# "lib" prefix; dev.titanslot.core.Core expects exactly these names.
+# "lib" prefix; dev.patchboy.core.Core expects exactly these names.
 set -euo pipefail
 
 BUILDBOT="${BUILDBOT:-https://buildbot.libretro.com/nightly/android/latest/arm64-v8a}"

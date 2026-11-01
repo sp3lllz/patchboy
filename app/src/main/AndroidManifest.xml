@@ -19,7 +19,7 @@
         are the app's own files, uninstalling offers to keep them (hasFragileUserData).
     -->
     <application
-        android:name=".TitanSlotApplication"
+        android:name=".PatchBoyApplication"
         android:allowBackup="true"
         android:fullBackupContent="@xml/backup_rules"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -27,7 +27,7 @@
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher"
         android:label="@string/app_name"
-        android:theme="@style/Theme.TitanSlot"
+        android:theme="@style/Theme.PatchBoy"
         android:appCategory="game"
         android:isGame="true"
         android:hardwareAccelerated="true"
@@ -37,7 +37,7 @@
             android:name=".MainActivity"
             android:exported="true"
             android:screenOrientation="portrait"
-            android:windowSoftInputMode="stateAlwaysHidden"
+            android:windowSoftInputMode="stateAlwaysHidden|adjustResize"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|uiMode|density|fontScale|locale|layoutDirection"
             tools:ignore="DiscouragedApi,LockedOrientationActivity">
             <intent-filter>
@@ -46,14 +46,18 @@
             </intent-filter>
         </activity>
 
-        <!-- Each game gets its own process, so cores always load fresh. -->
+        <!--
+            Each game gets its own process, so cores always load fresh. It turns with the phone
+            (respecting the rotation lock), and handles the turn itself so the core never
+            restarts: portrait puts the controls under the picture, landscape either side.
+        -->
         <activity
             android:name=".GameActivity"
             android:exported="false"
             android:process=":game"
-            android:screenOrientation="portrait"
+            android:screenOrientation="fullUser"
             android:windowSoftInputMode="stateAlwaysHidden"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|uiMode|density|fontScale|locale|layoutDirection"
-            tools:ignore="DiscouragedApi,LockedOrientationActivity" />
+            tools:ignore="DiscouragedApi" />
     </application>
 </manifest>

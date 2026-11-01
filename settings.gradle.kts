@@ -17,7 +17,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "TitanSlot"
+rootProject.name = "PatchBoy"
 include(":app")
 // The emulator cores, one on-demand feature module each (see app/build.gradle.kts).
 include(":core_gambatte", ":core_mgba")

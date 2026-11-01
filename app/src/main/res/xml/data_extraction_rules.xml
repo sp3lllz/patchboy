@@ -3,7 +3,7 @@
     Android 12 and later. Backed up: battery saves, cart settings, preferences and key bindings.
     Not: games (yours to import again), save states (too large for cloud backup), and the
     "device" preferences (which card the library is on, whether setup ran), which mean nothing
-    on another phone. "external" is the phone's app folder, Android/data/dev.titanslot/files.
+    on another phone. "external" is the phone's app folder, Android/data/dev.patchboy/files.
 -->
 <data-extraction-rules>
     <cloud-backup>
