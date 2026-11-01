@@ -31,7 +31,7 @@ phone from the last several years. A Bluetooth or USB gamepad or keyboard is opt
 2. Open it, and let your browser or file manager install apps when Android asks. Or, from a
    computer with USB debugging on:
    ```bash
-   adb install PatchBoy-0.1.0.apk
+   adb install PatchBoy-0.2.0.apk
    ```
 3. Open PatchBoy. Setup downloads the two emulator cores (a few megabytes), so the first launch
    needs an internet connection.
