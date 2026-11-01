@@ -7,6 +7,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Process
 import android.view.KeyEvent
+import android.view.MotionEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.addCallback
 import androidx.activity.compose.setContent
@@ -26,6 +27,7 @@ import dev.patchboy.data.Settings
 import dev.patchboy.data.StateStore
 import dev.patchboy.game.GameSession
 import dev.patchboy.input.Hardware
+import dev.patchboy.input.HatDpad
 import dev.patchboy.input.KeyMap
 import dev.patchboy.input.KeyRouter
 import dev.patchboy.ui.GameApp
@@ -41,6 +43,7 @@ class GameActivity : ComponentActivity(), GameHost {
     private lateinit var controller: GameController
     private lateinit var keyMap: KeyMap
     private lateinit var status: SystemStatus
+    private val hat = HatDpad()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -87,6 +90,7 @@ class GameActivity : ComponentActivity(), GameHost {
 
     override fun onPause() {
         if (::controller.isInitialized) {
+            hat.release(controller::onKey)
             controller.onPause()
             status.stop()
         }
@@ -105,6 +109,12 @@ class GameActivity : ComponentActivity(), GameHost {
         if (!::controller.isInitialized) return super.dispatchKeyEvent(event)
         return KeyRouter.route(event, keyMap, onKey = controller::onHardwareKey) ||
             super.dispatchKeyEvent(event)
+    }
+
+    /** Controller hats steer the d-pad; the thumbsticks are swallowed so they do nothing. */
+    override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
+        if (::controller.isInitialized && hat.route(event, controller::onHardwareKey)) return true
+        return super.dispatchGenericMotionEvent(event)
     }
 
     override fun finishGame() {

@@ -175,7 +175,8 @@ with a keyboard or gamepad, and come back the next time you touch the screen.
 
 ### Keyboard and gamepad
 
-A Bluetooth gamepad works without setup. A keyboard uses these defaults, and every key can be
+A Bluetooth or USB gamepad works without setup. Its d-pad steers, whether it reports as buttons
+or as a hat (as Xbox-style pads do); the thumbsticks are ignored. A keyboard uses these defaults, and every key can be
 rebound in Settings > Keyboard & Gamepad:
 
 | Key | Button |

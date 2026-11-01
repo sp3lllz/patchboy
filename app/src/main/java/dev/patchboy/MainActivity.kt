@@ -6,6 +6,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.view.KeyEvent
+import android.view.MotionEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.addCallback
 import androidx.activity.compose.setContent
@@ -27,6 +28,7 @@ import dev.patchboy.data.Importer
 import dev.patchboy.data.Paths
 import dev.patchboy.data.Settings
 import dev.patchboy.data.Storage
+import dev.patchboy.input.HatDpad
 import dev.patchboy.input.KeyMap
 import dev.patchboy.input.KeyRouter
 import dev.patchboy.ui.PatchBoyApp
@@ -36,6 +38,7 @@ import java.io.InputStream
 class MainActivity : ComponentActivity(), Host {
     private lateinit var app: AppState
     private lateinit var sfx: Sfx
+    private val hat = HatDpad()
 
     private val game = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         app.onGameFinished()
@@ -95,6 +98,7 @@ class MainActivity : ComponentActivity(), Host {
 
     override fun onPause() {
         if (::app.isInitialized) {
+            hat.release(app::onKey)
             app.onPause()
             app.status.stop()
         }
@@ -119,6 +123,12 @@ class MainActivity : ComponentActivity(), Host {
         if (app.softEdit) return super.dispatchKeyEvent(event)
         if (app.editKey(event)) return true
         return KeyRouter.route(event, app.keyMap, app::captureKey, app::onKey) || super.dispatchKeyEvent(event)
+    }
+
+    /** Controller hats steer the shelf and menus; the thumbsticks are swallowed so they do nothing. */
+    override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
+        if (::app.isInitialized && hat.route(event, app::onKey)) return true
+        return super.dispatchGenericMotionEvent(event)
     }
 
     private fun hideSystemBars() {
