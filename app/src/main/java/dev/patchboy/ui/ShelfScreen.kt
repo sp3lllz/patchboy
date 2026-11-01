@@ -25,6 +25,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import kotlinx.coroutines.coroutineScope
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -57,6 +66,7 @@ import dev.patchboy.app.ShelfModel
 import dev.patchboy.data.Cart
 import dev.patchboy.input.Button
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -76,6 +86,16 @@ private const val LETTER_MS = 700L
 /** Where the shelf tabs sit, pushed down by [Ui.top] on phones with a camera hole up there. */
 private const val TABS_Y = 42f
 
+/** The touch menus' vertical shelf, in portrait: neighbours shrink to this and fade further out. */
+private const val V_SIDE_SCALE = 0.72f
+private const val V_GAP = 16f
+private const val V_SLOTS = 4
+
+/** The touch menus' Cart and Settings buttons, in dp: their height and the gap under them. */
+private const val BUTTON_H = 56f
+private const val BUTTON_GAP = 14f
+private const val BUTTON_HINT = 30f
+
 private const val CATCH_IN = 0.42f
 private const val CATCH_OUT = 0.62f
 private const val CREEP = 0.03f
@@ -84,6 +104,35 @@ private const val CREEP = 0.03f
 fun cartWidth(cart: Cart): Float = when (cart.platform) {
     dev.patchboy.core.Platform.GBA -> 360f
     dev.patchboy.core.Platform.GB, dev.patchboy.core.Platform.GBC -> 312f
+}
+
+/**
+ * Where the carousel lives on screen: carts rest centred on [centre], between [top] and
+ * [bottom]. [vertical] stacks them top to bottom (the touch menus in portrait); otherwise they
+ * run left to right, as slot has them. The caption goes under the middle cart, or, stacked,
+ * at [bottom].
+ */
+private class Stage(val vertical: Boolean, val top: Float, val bottom: Float) {
+    val centre: Float get() = (top + bottom) / 2f
+
+    /** How far a cart [t] places from the middle sits from it, stacked, for carts [ch] tall. */
+    fun distance(t: Float, ch: Float, u: Float): Float {
+        val first = ch * (1f + V_SIDE_SCALE) / 2f + V_GAP * u
+        return if (t <= 1f) t * first else first + (t - 1f) * (ch * V_SIDE_SCALE + V_GAP * u)
+    }
+
+    companion object {
+        /** [buttons] is the room the touch buttons above the slot need, in px (0 with key hints). */
+        fun of(ui: Ui, chrome: Chrome, vertical: Boolean, buttons: Float): Stage {
+            val top = ui.top(TABS_Y) + ui.px(40f)
+            val bottom = when {
+                buttons <= 0f -> ui.heightPx - ui.px(58f + 92f)
+                vertical -> chrome.bandTop - buttons - ui.px(56f)
+                else -> chrome.bandTop - buttons - ui.px(60f)
+            }
+            return Stage(vertical, top, bottom)
+        }
+    }
 }
 
 /** The slot along the bottom of the panel, after slot's slot_chrome.rs. */
@@ -210,6 +259,12 @@ fun ShelfScreen(app: AppState) {
     val measurer = rememberTextMeasurer(cacheSize = 64)
     val chrome = remember(ui) { Chrome(ui) }
     val touch = LocalTouch.current
+    // The touch menus get big Cart and Settings buttons, and stack the shelf in portrait.
+    val touchMenus = LocalTouchMenus.current && touch
+    val vertical = LocalTouchMenus.current && ui.heightPx > ui.widthPx
+    val density = LocalDensity.current
+    val buttons = if (touchMenus) with(density) { (BUTTON_H + BUTTON_GAP + BUTTON_HINT).dp.toPx() } else 0f
+    val stage = remember(ui, chrome, vertical, buttons) { Stage.of(ui, chrome, vertical, buttons) }
 
     val seat = remember { Animatable(0f) }
     val screen = remember { Animatable(0f) }
@@ -279,37 +334,71 @@ fun ShelfScreen(app: AppState) {
     Box(
         Modifier
             .fillMaxSize()
-            .pointerInput(app) {
+            .pointerInput(app, stage) {
                 detectTapGestures(
                     onTap = { p ->
                         if (app.mode != Mode.Shelf || app.overlay != null) return@detectTapGestures
+                        if (p.y < ui.top(TABS_Y) + ui.px(50f)) {
+                            app.switchShelf(if (p.x < size.width / 2) -1 else 1)
+                            return@detectTapGestures
+                        }
+                        if (stage.vertical) {
+                            val by = stackSlotAt(app, ui, stage, p.y)
+                            if (by == 0) app.insert(fresh = false) else app.stepShelf(by)
+                            return@detectTapGestures
+                        }
                         when {
                             p.x < size.width * 0.28f -> app.stepShelf(-1)
                             p.x > size.width * 0.72f -> app.stepShelf(1)
-                            p.y < ui.top(TABS_Y) + ui.px(50f) -> app.switchShelf(if (p.x < size.width / 2) -1 else 1)
                             else -> app.insert(fresh = false)
                         }
                     },
                     onLongPress = { p ->
-                        if (app.mode == Mode.Shelf && app.overlay == null &&
-                            p.x in size.width * 0.28f..size.width * 0.72f
-                        ) app.insert(fresh = true)
+                        if (app.mode != Mode.Shelf || app.overlay != null) return@detectTapGestures
+                        val middle = if (stage.vertical) stackSlotAt(app, ui, stage, p.y) == 0 else p.x in size.width * 0.28f..size.width * 0.72f
+                        if (middle) app.insert(fresh = true)
                     },
                 )
             }
-            .pointerInput(app) {
+            .pointerInput(app, stage) {
+                // Along the shelf, a drag flicks through carts. Stacked, a sideways swipe
+                // switches shelves instead.
                 var acc = 0f
-                detectHorizontalDragGestures(
-                    onDragStart = { acc = 0f },
-                ) { change, dx ->
-                    if (app.mode != Mode.Shelf || app.overlay != null) return@detectHorizontalDragGestures
-                    change.consume()
-                    acc += dx
-                    val step = ui.px(110f)
-                    while (abs(acc) > step) {
-                        app.stepShelf(if (acc > 0) -1 else 1)
-                        acc -= step * sign(acc)
+                var across = 0f
+                val step = ui.px(if (stage.vertical) 150f else 110f)
+                val onDrag = { change: androidx.compose.ui.input.pointer.PointerInputChange, d: Float ->
+                    if (app.mode == Mode.Shelf && app.overlay == null) {
+                        change.consume()
+                        acc += d
+                        while (abs(acc) > step) {
+                            app.stepShelf(if (acc > 0) -1 else 1)
+                            acc -= step * sign(acc)
+                        }
                     }
+                }
+                if (stage.vertical) {
+                    // Undispatched, so both are listening before the touch that started this
+                    // block goes past; otherwise the first swipe would read as a tap.
+                    coroutineScope {
+                        launch(start = CoroutineStart.UNDISPATCHED) {
+                            detectVerticalDragGestures(onDragStart = { acc = 0f }, onVerticalDrag = onDrag)
+                        }
+                        launch(start = CoroutineStart.UNDISPATCHED) {
+                            detectHorizontalDragGestures(
+                                onDragStart = { across = 0f },
+                                onDragEnd = {
+                                    if (app.mode == Mode.Shelf && app.overlay == null && abs(across) > ui.px(120f)) {
+                                        app.switchShelf(if (across > 0) -1 else 1)
+                                    }
+                                },
+                            ) { change, dx ->
+                                change.consume()
+                                across += dx
+                            }
+                        }
+                    }
+                } else {
+                    detectHorizontalDragGestures(onDragStart = { acc = 0f }, onHorizontalDrag = onDrag)
                 }
             },
     ) {
@@ -320,14 +409,14 @@ fun ShelfScreen(app: AppState) {
             drawTabs(app, ui, measurer, alpha = 1f - recede, caps = !touch)
 
             if (shelf != null) {
-                drawRow(shelf, ui, faces, scope, hidden = moving?.key, recede = recede)
-                if (moving == null) drawCaption(shelf, ui, measurer)
+                drawRow(shelf, ui, stage, faces, scope, hidden = moving?.key, recede = recede)
+                if (moving == null) drawCaption(shelf, ui, stage, measurer)
             } else if (app.scanned) {
                 drawEmpty(app, ui, measurer, touch)
             }
 
             chrome.drawBack(this, 1f)
-            if (moving != null) drawMoving(moving, s, ui, chrome, faces, scope)
+            if (moving != null) drawMoving(moving, s, ui, stage, chrome, faces, scope)
             else drawSlotName(app, ui, chrome, measurer)
             chrome.drawFront(this, 1f)
             drawFooter(app, ui, chrome, measurer)
@@ -335,7 +424,52 @@ fun ShelfScreen(app: AppState) {
 
             if (screen.value > 0f) drawRect(Color.Black, alpha = screen.value)
         }
-        if (touch && moving == null && app.overlay == null) TouchHints(app, chrome, hasCart = shelf?.current != null)
+        if (touch && moving == null && app.overlay == null) {
+            if (touchMenus) TouchButtons(app, chrome, hasCart = shelf?.current != null)
+            else TouchHints(app, chrome, hasCart = shelf?.current != null)
+        }
+    }
+}
+
+/**
+ * Which cart a tap at [y] lands on in the stacked shelf, as a step from the middle one (0).
+ * Taps between carts go to the nearer.
+ */
+private fun stackSlotAt(app: AppState, ui: Ui, stage: Stage, y: Float): Int {
+    val cart = app.shelf?.current ?: return 0
+    val ch = cartWidth(cart) * ui.u * CartArt.spec(cart.shape).aspect
+    val dy = y - stage.centre
+    if (abs(dy) <= ch / 2f) return 0
+    val n = (1..V_SLOTS).minBy { abs(stage.distance(it.toFloat(), ch, ui.u) - abs(dy)) }
+    return n * sign(dy).toInt()
+}
+
+/** The touch menus' home buttons: full-size Cart and Settings above the slot. */
+@Composable
+private fun TouchButtons(app: AppState, chrome: Chrome, hasCart: Boolean) {
+    val density = LocalDensity.current
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(with(density) { chrome.bandTop.toDp() })
+            .padding(bottom = BUTTON_GAP.dp),
+        contentAlignment = Alignment.BottomCenter,
+    ) {
+        Column(
+            Modifier.widthIn(max = 560.dp).padding(horizontal = 20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            BasicText(
+                if (hasCart) "Tap to play · hold for a new game" else "",
+                modifier = Modifier.height(BUTTON_HINT.dp),
+                style = touchText(13f, Ink.faint).copy(textAlign = androidx.compose.ui.text.style.TextAlign.Center),
+                maxLines = 1,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (hasCart) TouchButton("Cart", app::openCart, Modifier.weight(1f), primary = false)
+                TouchButton("Settings", app::openSettings, Modifier.weight(1f), primary = false)
+            }
+        }
     }
 }
 
@@ -363,11 +497,13 @@ private fun TouchHints(app: AppState, chrome: Chrome, hasCart: Boolean) {
 private fun DrawScope.drawRow(
     shelf: ShelfModel,
     ui: Ui,
+    stage: Stage,
     faces: FaceCache,
     scope: CoroutineScope,
     hidden: String?,
     recede: Float,
 ) {
+    if (stage.vertical) return drawStack(shelf, ui, stage, faces, scope, hidden, recede)
     val u = ui.u
     val cx = size.width / 2f
     for (slot in -SLOTS..SLOTS) {
@@ -386,13 +522,50 @@ private fun DrawScope.drawRow(
         val away = sign(offset) * (1f + abs(offset))
         val x = cx + offset * cw - w / 2f + away * PART * u * recede
         if (x + w <= 0f || x >= size.width) continue
-        val foot = restCentre(ui) + ch / 2f
+        val foot = stage.centre + ch / 2f
         drawCart(cart, faces, scope, x, foot - h, w, h, cw, alpha)
     }
 }
 
-/** The vertical centre carts rest on, between the tabs and the caption. */
-private fun restCentre(ui: Ui): Float = ui.top(TABS_Y) + ui.px(40f) + (ui.heightPx - ui.px(58f + 92f) - ui.top(TABS_Y) - ui.px(40f)) / 2f
+/**
+ * The shelf stacked top to bottom: the middle cart full size, the rest smaller and fainter
+ * the further they are, so a tall phone shows several at once.
+ */
+private fun DrawScope.drawStack(
+    shelf: ShelfModel,
+    ui: Ui,
+    stage: Stage,
+    faces: FaceCache,
+    scope: CoroutineScope,
+    hidden: String?,
+    recede: Float,
+) {
+    val u = ui.u
+    val cx = size.width / 2f
+    // Below the shelf tabs, above the caption.
+    val clipTop = ui.top(TABS_Y) + ui.px(34f)
+    clipRect(top = clipTop, bottom = stage.bottom + ui.px(8f)) {
+        for (slot in -V_SLOTS..V_SLOTS) {
+            val i = shelf.cartAt(slot) ?: continue
+            val cart = shelf.carts[i]
+            if (cart.key == hidden) continue
+            val offset = shelf.ride + slot - shelf.scroll
+            val t = abs(offset)
+            val near = min(t, 1f)
+            val scale = 1f + (V_SIDE_SCALE - 1f) * near
+            val fade = if (t <= 1f) 1f + (SIDE_ALPHA - 1f) * t else SIDE_ALPHA * (1f - (t - 1f) * 0.28f)
+            val alpha = fade.coerceAtLeast(0f) * (1f - recede)
+            if (alpha <= 0f) continue
+            val cw = cartWidth(cart) * u
+            val ch = cw * CartArt.spec(cart.shape).aspect
+            val w = cw * scale
+            val h = ch * scale
+            val y = stage.centre + sign(offset) * (stage.distance(t, ch, u) + PART * u * recede)
+            if (y + h / 2f < clipTop || y - h / 2f > stage.bottom + ui.px(8f)) continue
+            drawCart(cart, faces, scope, cx - w / 2f, y - h / 2f, w, h, cw, alpha)
+        }
+    }
+}
 
 private fun DrawScope.drawCart(
     cart: Cart,
@@ -420,6 +593,7 @@ private fun DrawScope.drawMoving(
     cart: Cart,
     seat: Float,
     ui: Ui,
+    stage: Stage,
     chrome: Chrome,
     faces: FaceCache,
     scope: CoroutineScope,
@@ -429,7 +603,7 @@ private fun DrawScope.drawMoving(
     val h0 = w0 * aspect
     val sw = SEATED_W * ui.u
     val sh = sw * aspect
-    val foot0 = restCentre(ui) + h0 / 2f
+    val foot0 = stage.centre + h0 / 2f
     val seatedFoot = chrome.seatedY + sh
     val catch = (chrome.bandTop - foot0) / (seatedFoot - foot0)
     val tr = travel(seat.coerceIn(0f, 1f), catch)
@@ -480,7 +654,7 @@ private fun DrawScope.drawKeyCap(l: androidx.compose.ui.text.TextLayoutResult, a
     drawText(l, color = Ink.menu, topLeft = at + Offset(padX, padY), alpha = alpha)
 }
 
-private fun DrawScope.drawCaption(shelf: ShelfModel, ui: Ui, measurer: TextMeasurer) {
+private fun DrawScope.drawCaption(shelf: ShelfModel, ui: Ui, stage: Stage, measurer: TextMeasurer) {
     val cart = shelf.current ?: return
     val settle = 1f - min(abs(shelf.scroll - shelf.ride) * 3f, 1f)
     if (settle <= 0f) return
@@ -491,7 +665,7 @@ private fun DrawScope.drawCaption(shelf: ShelfModel, ui: Ui, measurer: TextMeasu
         cart.title, style, overflow = TextOverflow.Ellipsis, maxLines = 1,
         constraints = Constraints(maxWidth = (size.width - ui.px(80f)).toInt()),
     )
-    val y = restCentre(ui) + ch / 2f + ui.px(26f)
+    val y = if (stage.vertical) stage.bottom + ui.px(18f) else stage.centre + ch / 2f + ui.px(26f)
     drawText(l, topLeft = Offset((size.width - l.size.width) / 2f, y), alpha = settle)
 }
 

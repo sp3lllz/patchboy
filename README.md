@@ -31,7 +31,7 @@ phone from the last several years. A Bluetooth or USB gamepad or keyboard is opt
 2. Open it, and let your browser or file manager install apps when Android asks. Or, from a
    computer with USB debugging on:
    ```bash
-   adb install PatchBoy-0.2.0.apk
+   adb install PatchBoy-0.3.0.apk
    ```
 3. Open PatchBoy. Setup downloads the two emulator cores (a few megabytes), so the first launch
    needs an internet connection.
@@ -164,15 +164,17 @@ both. L and R appear for Game Boy Advance games only. Above the d-pad are the fr
 | ◀◀ | | Rewind | |
 | ▶▶ | | Fast-forward | Lock fast-forward on |
 
-**On the shelf:** tap the middle to play (resuming where you left off), hold it to start fresh,
-swipe or tap the sides to browse, tap the shelf names at the top to switch shelves. The **Cart**
-and **Settings** buttons along the bottom open the cart sheet and settings. Every menu row is
-tappable, and Back closes whatever is open.
+**On the shelf:** in portrait the carts are stacked top to bottom, so a tall phone shows several
+at once: swipe up and down or tap a cart to bring it to the middle, and swipe sideways (or tap
+the shelf names at the top) to switch shelves. Turn the phone and they run left to right across
+the screen instead. Either way, tap the middle cart to play (resuming where you left off) and
+hold it to start fresh. The big **Cart** and **Settings** buttons along the bottom open the cart
+sheet and settings. Every menu row is tappable, and Back closes whatever is open.
 
 Settings, setup and the cart sheet use big touch rows by default: switches for on / off
 settings, ‹ › buttons that step through choices either way, and a back arrow at the top. With a
 controller, Settings > **Menu Style** > **Classic** brings back slot's compact list, made for
-d-pad navigation. (Touch menus work with a controller too; the row you're on lights up while
+d-pad navigation, and its original portrait shelf with the carts in one row. (Touch menus work with a controller too; the row you're on lights up while
 one is connected.)
 
 Settings has **Touch Controls** (Auto, On or Off), **Touch Size** (Small, Medium, Large),
