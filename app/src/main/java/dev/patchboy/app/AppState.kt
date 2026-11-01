@@ -30,6 +30,7 @@ import dev.patchboy.data.Library
 import dev.patchboy.data.Paths
 import dev.patchboy.data.Scaling
 import dev.patchboy.data.Settings
+import dev.patchboy.data.MenuStyle
 import dev.patchboy.data.Storage
 import dev.patchboy.data.TouchMode
 import dev.patchboy.data.TouchSize
@@ -463,12 +464,14 @@ class AppState(
         QuickRow.TOUCH_SIZE -> settings.touchSize.label
         QuickRow.TOUCH_OPACITY -> "${settings.touchOpacity}%"
         QuickRow.TOUCH_HAPTICS -> onOff(settings.touchHaptics)
+        QuickRow.MENU_STYLE -> settings.menuStyle.label
         QuickRow.STORAGE -> if (storage.libraryVolume == Storage.PHONE) "Phone" else "microSD"
         QuickRow.CORES -> if (coresReady) "Ready" else "Missing"
         else -> null
     }
 
-    private fun changeQuick(row: QuickRow, dir: Int) {
+    fun changeQuick(row: QuickRow, dir: Int) {
+        quickRow = row
         when (row) {
             QuickRow.FAST_FORWARD -> settings.ffSpeed = Settings.FF_SPEEDS.cycle(settings.ffSpeed, dir)
             QuickRow.FAST_FORWARD_SOUND -> settings.ffSound = !settings.ffSound
@@ -481,6 +484,7 @@ class AppState(
             QuickRow.TOUCH_SIZE -> settings.touchSize = TouchSize.entries.cycle(settings.touchSize, dir)
             QuickRow.TOUCH_OPACITY -> settings.touchOpacity = Settings.TOUCH_OPACITIES.cycle(settings.touchOpacity, dir)
             QuickRow.TOUCH_HAPTICS -> settings.touchHaptics = !settings.touchHaptics
+            QuickRow.MENU_STYLE -> settings.menuStyle = MenuStyle.entries.cycle(settings.menuStyle, dir)
             else -> Unit
         }
     }
@@ -580,7 +584,9 @@ class AppState(
         }
     }
 
-    private fun changeCart(cart: Cart, row: CartRow, dir: Int) {
+    fun changeCart(cart: Cart, row: CartRow, dir: Int) {
+        cartRow = row
+        confirmRemove = false
         when (row) {
             CartRow.SCRAPE -> scrapeKind = Scraper.Kind.entries.cycle(scrapeKind, dir)
             CartRow.FIT -> setProps(cart) { it.copy(fit = ArtFit.entries.cycle(cart.fit, dir)) }

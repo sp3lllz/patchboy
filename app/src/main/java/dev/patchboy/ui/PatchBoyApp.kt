@@ -16,6 +16,7 @@ import androidx.compose.ui.platform.LocalDensity
 import dev.patchboy.app.AppState
 import dev.patchboy.app.GameController
 import dev.patchboy.app.Mode
+import dev.patchboy.data.MenuStyle
 import dev.patchboy.input.rememberHasControls
 
 /**
@@ -46,11 +47,13 @@ fun UiRoot(content: @Composable () -> Unit) {
 
 @Composable
 fun PatchBoyApp(app: AppState) = UiRoot {
-    when (app.mode) {
-        Mode.Setup -> SetupScreen(app)
-        else -> {
-            ShelfScreen(app)
-            ShelfOverlays(app)
+    CompositionLocalProvider(LocalTouchMenus provides (app.settings.menuStyle == MenuStyle.TOUCH)) {
+        when (app.mode) {
+            Mode.Setup -> SetupScreen(app)
+            else -> {
+                ShelfScreen(app)
+                ShelfOverlays(app)
+            }
         }
     }
     ToastHost(app.toast)

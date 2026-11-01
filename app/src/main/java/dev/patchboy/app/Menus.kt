@@ -17,6 +17,7 @@ enum class QuickRow(val label: String) {
     TOUCH_SIZE("Touch Size"),
     TOUCH_OPACITY("Touch Opacity"),
     TOUCH_HAPTICS("Vibrate on Touch"),
+    MENU_STYLE("Menu Style"),
     CONTROLS("Keyboard & Gamepad"),
     ADD_GAMES("Add Games"),
     IMPORT_SAVES("Import Saves"),
@@ -28,7 +29,20 @@ enum class QuickRow(val label: String) {
     ABOUT("About");
 
     /** Rows whose value Left / Right cycles. */
-    val cycles: Boolean get() = ordinal <= TOUCH_HAPTICS.ordinal
+    val cycles: Boolean get() = ordinal <= MENU_STYLE.ordinal
+
+    /** Rows that are on or off, drawn as a switch in the touch menus. */
+    val toggle: Boolean get() = this in setOf(FAST_FORWARD_SOUND, REWIND, COLOUR_CORRECTION, TOUCH_HAPTICS)
+
+    companion object {
+        /** The touch Settings page, in sections. Every row is in exactly one. */
+        val SECTIONS: List<Pair<String, List<QuickRow>>> = listOf(
+            "Game" to listOf(FAST_FORWARD, FAST_FORWARD_SOUND, REWIND, SCALING, FILTER, COLOUR_CORRECTION, GB_PALETTE),
+            "Controls" to listOf(TOUCH_MODE, TOUCH_SIZE, TOUCH_OPACITY, TOUCH_HAPTICS, CONTROLS),
+            "Games" to listOf(ADD_GAMES, IMPORT_SAVES, SCRAPE_MISSING, STORAGE, RESCAN),
+            "App" to listOf(MENU_STYLE, CORES, SETUP, ABOUT),
+        )
+    }
 }
 
 /** The in-game menu on a tap of MENU. */

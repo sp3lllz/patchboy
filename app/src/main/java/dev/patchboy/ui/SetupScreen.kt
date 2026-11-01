@@ -20,6 +20,11 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -41,23 +46,28 @@ fun SetupScreen(app: AppState) {
     val step = setup.step ?: return
     val ui = LocalUi.current
     val keys = app.keyMap
+    val touchMenus = LocalTouchMenus.current
     Sheet {
         Column(Modifier.fillMaxSize()) {
-            StepHeader(setup)
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-            ) {
-                when (step) {
-                    SetupStep.WELCOME -> Welcome(app)
-                    SetupStep.STORAGE -> Place(app)
-                    SetupStep.CORES -> Cores(app)
-                    SetupStep.GAMES -> Games(app)
-                    SetupStep.SAVES -> Saves(app)
-                    SetupStep.CONTROLS -> ControlsGuide(app)
-                    SetupStep.DONE -> Done(app)
+            if (touchMenus) TouchStepHeader(app) else StepHeader(setup)
+            if (touchMenus) {
+                // Bigger type may not fit a short phone, so the step scrolls; when it does fit,
+                // the min height lets its spacers push the button to the bottom as before.
+                BoxWithConstraints(Modifier.fillMaxWidth().weight(1f)) {
+                    val fit = maxHeight
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState())
+                            .heightIn(min = fit),
+                    ) { StepContent(app, step) }
                 }
+            } else {
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                ) { StepContent(app, step) }
             }
             val legend = when {
                 setup.busy -> arrayOf(keys.hint(Button.B) to "Stop")
@@ -69,11 +79,53 @@ fun SetupScreen(app: AppState) {
                     keys.hint(Button.B) to "Back",
                 )
             }
+            if (touchMenus) {
+                // Back is the arrow at the top; only stopping a copy needs a button down here.
+                if (setup.busy) TouchButton("Stop", app::onBack, Modifier.padding(20.dp), primary = false)
+                return@Column
+            }
             Legend(*legend, modifier = Modifier.padding(top = ui.dp(10f), bottom = ui.dp(30f)))
             when {
                 setup.busy -> TouchBar("Stop" to app::onBack, modifier = Modifier.padding(top = ui.dp(10f), bottom = ui.dp(30f)))
                 setup.firstRun && setup.index == 0 -> Unit
                 else -> TouchBar("Back" to app::onBack, modifier = Modifier.padding(top = ui.dp(10f), bottom = ui.dp(30f)))
+            }
+        }
+    }
+}
+
+@Composable
+private fun ColumnScope.StepContent(app: AppState, step: SetupStep) {
+    when (step) {
+        SetupStep.WELCOME -> Welcome(app)
+        SetupStep.STORAGE -> Place(app)
+        SetupStep.CORES -> Cores(app)
+        SetupStep.GAMES -> Games(app)
+        SetupStep.SAVES -> Saves(app)
+        SetupStep.CONTROLS -> ControlsGuide(app)
+        SetupStep.DONE -> Done(app)
+    }
+}
+
+/** The touch menus' step header: a back arrow, where you are, and the step dots. */
+@Composable
+private fun TouchStepHeader(app: AppState) {
+    val setup = app.setup
+    val canGoBack = !(setup.firstRun && setup.index == 0)
+    TouchTopBar(
+        title = null,
+        subtitle = if (setup.steps.size > 1) "Step ${setup.index + 1} of ${setup.steps.size}" else null,
+        onBack = if (canGoBack) app::onBack else null,
+    ) {
+        if (setup.steps.size > 1) {
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                setup.steps.indices.forEach { i ->
+                    Box(
+                        Modifier
+                            .size(if (i == setup.index) 10.dp else 7.dp)
+                            .background(if (i <= setup.index) Ink.menu else Ink.edge, CircleShape),
+                    )
+                }
             }
         }
     }
@@ -112,6 +164,14 @@ private fun StepHeader(setup: Setup) {
 @Composable
 private fun Title(text: String) {
     val ui = LocalUi.current
+    if (LocalTouchMenus.current) {
+        BasicText(
+            text,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
+            style = touchText(26f, Ink.menu, FontWeight.Bold),
+        )
+        return
+    }
     BasicText(
         text,
         modifier = Modifier
@@ -124,6 +184,14 @@ private fun Title(text: String) {
 @Composable
 private fun Body(text: String, size: Float = 17f) {
     val ui = LocalUi.current
+    if (LocalTouchMenus.current) {
+        BasicText(
+            text,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 6.dp),
+            style = touchText(size * 0.95f, Ink.dim),
+        )
+        return
+    }
     BasicText(
         text,
         modifier = Modifier
@@ -136,6 +204,10 @@ private fun Body(text: String, size: Float = 17f) {
 @Composable
 private fun Note(text: String) {
     val ui = LocalUi.current
+    if (LocalTouchMenus.current) {
+        BasicText(text, Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp), style = touchText(15f, Ink.menu))
+        return
+    }
     BasicText(
         text,
         modifier = Modifier
@@ -148,6 +220,7 @@ private fun Note(text: String) {
 /** The step's rows, with the selection bar on the current one. */
 @Composable
 private fun Rows(setup: Setup, label: (SetupRow) -> String, value: (SetupRow) -> String? = { null }) {
+    if (LocalTouchMenus.current) return TouchRows(setup, label, value)
     setup.rows().forEachIndexed { i, row ->
         MenuRow(
             text = label(row),
@@ -159,6 +232,26 @@ private fun Rows(setup: Setup, label: (SetupRow) -> String, value: (SetupRow) ->
             textSize = 23f,
             valueWidth = 190f,
         )
+    }
+}
+
+/** The touch version of [Rows]: big rows to tap, and the step forward as a button. */
+@Composable
+private fun TouchRows(setup: Setup, label: (SetupRow) -> String, value: (SetupRow) -> String?) {
+    Spacer(Modifier.height(8.dp))
+    setup.rows().forEachIndexed { i, row ->
+        val text = label(row)
+        val v = value(row)
+        val focused = !setup.busy && i == setup.row
+        when (row) {
+            SetupRow.Next -> TouchButton(
+                text,
+                { setup.select(i) },
+                Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+            )
+            SetupRow.FetchArt -> TouchRow(text, { setup.select(i) }, focused) { TouchSwitch(v == "On") }
+            else -> TouchRow(text, { setup.select(i) }, focused) { TouchChevron(v) }
+        }
     }
 }
 
@@ -222,11 +315,16 @@ private fun ColumnScope.Welcome(app: AppState) {
         Row(
             Modifier
                 .fillMaxWidth()
-                .padding(horizontal = ui.dp(150f), vertical = ui.dp(5f)),
+                .padding(horizontal = if (LocalTouchMenus.current) 56.dp else ui.dp(150f), vertical = ui.dp(5f)),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            BasicText("${i + 1}", modifier = Modifier.width(ui.dp(34f)), style = label(18f, Ink.faint, FontWeight.Bold))
-            BasicText(text, style = label(18f, Ink.dim))
+            val touchMenus = LocalTouchMenus.current
+            BasicText(
+                "${i + 1}",
+                modifier = Modifier.width(if (touchMenus) 32.dp else ui.dp(34f)),
+                style = if (touchMenus) touchText(17f, Ink.faint, FontWeight.Bold) else label(18f, Ink.faint, FontWeight.Bold),
+            )
+            BasicText(text, style = if (touchMenus) touchText(17f, Ink.dim) else label(18f, Ink.dim))
         }
     }
     Spacer(Modifier.weight(1f))
@@ -373,14 +471,22 @@ private fun ColumnScope.TouchGuide(app: AppState) {
         "CART" to "Cart options",
         "SETTINGS" to "Settings",
     )
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(horizontal = ui.dp(40f)),
-        horizontalArrangement = Arrangement.spacedBy(ui.dp(30f)),
-    ) {
-        ShortcutColumn("In a game", playing, Modifier.weight(1f))
-        ShortcutColumn("On the shelf", shelf, Modifier.weight(1f))
+    if (LocalTouchMenus.current) {
+        // Big enough to read, so one list under the other.
+        Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+            ShortcutColumn("In a game", playing, Modifier.fillMaxWidth())
+            ShortcutColumn("On the shelf", shelf, Modifier.fillMaxWidth())
+        }
+    } else {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = ui.dp(40f)),
+            horizontalArrangement = Arrangement.spacedBy(ui.dp(30f)),
+        ) {
+            ShortcutColumn("In a game", playing, Modifier.weight(1f))
+            ShortcutColumn("On the shelf", shelf, Modifier.weight(1f))
+        }
     }
     Spacer(Modifier.weight(1f))
     Body("Settings › Touch Controls changes their size and opacity. A Bluetooth controller or keyboard works too; the buttons hide while you use it.", 14f)
@@ -430,11 +536,37 @@ private fun ColumnScope.KeysGuide(app: AppState) {
     }
     Spacer(Modifier.weight(1f))
     Body("Change any key in Settings › Keyboard & Gamepad. A Bluetooth controller works too.", 14f)
+    if (LocalTouchMenus.current) Rows(app.setup, label = { nextLabel(app.setup) })
 }
 
 @Composable
 private fun ShortcutColumn(title: String, items: List<Pair<String, String>>, modifier: Modifier) {
     val ui = LocalUi.current
+    if (LocalTouchMenus.current) {
+        Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            BasicText(title.uppercase(), style = touchText(13f, Ink.faint, FontWeight.Bold, 0.12f))
+            items.forEach { (key, what) ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier
+                            .width(112.dp)
+                            .padding(end = 12.dp),
+                    ) {
+                        BasicText(
+                            key,
+                            modifier = Modifier
+                                .background(Ink.edge, RoundedCornerShape(6.dp))
+                                .padding(horizontal = 8.dp, vertical = 3.dp),
+                            style = touchText(14f, Ink.menu, FontWeight.Bold),
+                            maxLines = 1,
+                        )
+                    }
+                    BasicText(what, style = touchText(16f, Ink.dim), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+        }
+        return
+    }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(ui.dp(7f))) {
         BasicText(title.uppercase(), style = label(13f, Ink.faint, FontWeight.Bold, 0.16f))
         items.forEach { (key, what) ->

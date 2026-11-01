@@ -38,6 +38,12 @@ enum class TouchSize(val label: String, val scale: Float) {
     LARGE("Large", 1.15f),
 }
 
+/**
+ * How Settings, the cart sheet and setup look. Touch has big rows, switches and arrows to tap;
+ * Classic is slot's compact list, made for a controller or keyboard.
+ */
+enum class MenuStyle(val label: String) { TOUCH("Touch"), CLASSIC("Classic") }
+
 /** Everything the quick menu changes, kept in SharedPreferences and observable from Compose. */
 class Settings(context: Context) {
     private val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
@@ -54,6 +60,7 @@ class Settings(context: Context) {
     /** How opaque the on-screen controls are, in percent: one of [TOUCH_OPACITIES]. */
     var touchOpacity by intPref("touch_opacity", 60)
     var touchHaptics by boolPref("touch_haptics", true)
+    var menuStyle by enumPref("menu_style", MenuStyle.TOUCH)
 
     var lastShelf: String?
         get() = prefs.getString("last_shelf", null)

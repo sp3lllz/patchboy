@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -149,6 +151,7 @@ private fun Header(title: String, subtitle: String? = null) {
 
 @Composable
 private fun QuickMenu(app: AppState) {
+    if (LocalTouchMenus.current) return TouchQuickMenu(app)
     val ui = LocalUi.current
     val keys = app.keyMap
     val list = rememberLazyListState()
@@ -193,6 +196,7 @@ private fun KeepInView(list: androidx.compose.foundation.lazy.LazyListState, at:
 
 @Composable
 private fun CartSheet(app: AppState) {
+    if (LocalTouchMenus.current) return TouchCartSheet(app)
     val ui = LocalUi.current
     val cart = app.shelf?.current ?: return
     val keys = app.keyMap
@@ -237,6 +241,85 @@ private fun CartSheet(app: AppState) {
 }
 
 private const val PREVIEW_H = 170f
+
+// ---- touch menus ---------------------------------------------------------------------------
+
+@Composable
+private fun TouchQuickMenu(app: AppState) {
+    TouchPage("Settings", onBack = app::onBack) {
+        QuickRow.SECTIONS.forEach { (title, rows) ->
+            touchSection(title)
+            items(rows, key = { it.name }) { row ->
+                val value = app.quickValue(row)
+                val focused = row == app.quickRow
+                when {
+                    row.toggle -> TouchRow(row.label, { app.activateQuick(row) }, focused) { TouchSwitch(value == "On") }
+                    row.cycles -> TouchRow(row.label, { app.activateQuick(row) }, focused) {
+                        TouchStepper(value.orEmpty(), { app.changeQuick(row, -1) }, { app.changeQuick(row, 1) })
+                    }
+                    else -> TouchRow(row.label, { app.activateQuick(row) }, focused) { TouchChevron(value) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TouchCartSheet(app: AppState) {
+    val ui = LocalUi.current
+    val cart = app.shelf?.current ?: return
+    TouchPage(cart.title, onBack = app::onBack, subtitle = cart.platform.title) {
+        item(key = "preview") { CartPreview(cart, Modifier.fillMaxWidth().height(ui.dp(PREVIEW_H)).padding(vertical = 8.dp)) }
+        items(app.cartRows(cart), key = { it.name }) { row ->
+            val value = app.cartValue(cart, row)
+            val focused = row == app.cartRow
+            val activate = { app.activateCart(row) }
+            val stepper: @Composable RowScope.() -> Unit = {
+                TouchStepper(value.orEmpty(), { app.changeCart(cart, row, -1) }, { app.changeCart(cart, row, 1) })
+            }
+            when (row) {
+                CartRow.NAME -> TouchRow(row.label, activate, focused, detail = value) { TouchChevron() }
+                CartRow.SCRAPE -> TouchRow("Fetch Art", activate, focused, detail = "Tap to download", trailing = stepper)
+                CartRow.COLOUR -> TouchRow(row.label, activate, focused, detail = "Tap to type a hex code", trailing = stepper)
+                CartRow.FIT, CartRow.FINISH, CartRow.SHAPE, CartRow.CHIP -> TouchRow(row.label, activate, focused, trailing = stepper)
+                CartRow.REMOVE -> TouchRow(
+                    row.label,
+                    activate,
+                    focused,
+                    detail = if (app.confirmRemove) "Tap again to remove. Saves and states are kept." else null,
+                    danger = true,
+                )
+                else -> TouchRow(row.label, activate, focused) { TouchChevron() }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TouchControls(app: AppState) {
+    val keys = app.keyMap
+    val touch = LocalTouch.current
+    TouchPage(
+        "Keyboard & Gamepad",
+        onBack = app::onBack,
+        subtitle = if (touch) "Connect a keyboard to change its keys" else "Tap a button, then press its key",
+    ) {
+        itemsIndexed(Button.entries) { i, button ->
+            val bound = keys.bindings[button].orEmpty()
+            val value = when {
+                app.listening == button -> "Press a key"
+                bound.isEmpty() -> "None"
+                else -> bound.joinToString(" / ") { KeyMap.keyName(it) }
+            }
+            TouchRow(button.label, { app.activateControl(i) }, i == app.controlsRow) {
+                BasicText(value, style = touchText(16f, if (app.listening == button) Ink.menu else Ink.dim, FontWeight.Bold))
+            }
+        }
+        item {
+            TouchRow("Reset to Default Keys", { app.activateControl(Button.entries.size) }, app.controlsRow == Button.entries.size)
+        }
+    }
+}
 
 /**
  * Typing a cart's name or colour without a keyboard: a field over the sheet that brings up
@@ -330,6 +413,7 @@ private fun CartPreview(cart: Cart, modifier: Modifier) {
 
 @Composable
 private fun Controls(app: AppState) {
+    if (LocalTouchMenus.current) return TouchControls(app)
     val ui = LocalUi.current
     val keys = app.keyMap
     val list = rememberLazyListState()

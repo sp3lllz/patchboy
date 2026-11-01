@@ -169,6 +169,12 @@ swipe or tap the sides to browse, tap the shelf names at the top to switch shelv
 and **Settings** buttons along the bottom open the cart sheet and settings. Every menu row is
 tappable, and Back closes whatever is open.
 
+Settings, setup and the cart sheet use big touch rows by default: switches for on / off
+settings, ‹ › buttons that step through choices either way, and a back arrow at the top. With a
+controller, Settings > **Menu Style** > **Classic** brings back slot's compact list, made for
+d-pad navigation. (Touch menus work with a controller too; the row you're on lights up while
+one is connected.)
+
 Settings has **Touch Controls** (Auto, On or Off), **Touch Size** (Small, Medium, Large),
 **Touch Opacity** and **Vibrate on Touch**. In Auto, the on-screen buttons hide while you play
 with a keyboard or gamepad, and come back the next time you touch the screen.
@@ -264,7 +270,7 @@ mode nearest 60 Hz while a game is up, so every emulated frame lands on a vsync.
 
 Fast-forward speed and sound, rewind, integer or fit scaling, screen filter (Sharp, Smooth,
 LCD, CRT), colour correction, original Game Boy palette, touch controls (Auto / On / Off, size,
-opacity, vibration), keyboard and gamepad keys, add games, import saves,
+opacity, vibration), menu style (Touch or Classic), keyboard and gamepad keys, add games, import saves,
 scrape cart art, game storage (phone or microSD), emulator cores, rescan, the setup guide, and
 about.
 
