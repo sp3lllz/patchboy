@@ -26,17 +26,28 @@ phone from the last several years. A Bluetooth or USB gamepad or keyboard is opt
 
 ## Install
 
-There are no release builds yet. To try it, build the sideload APK (see [Build](#build)) and
-install it:
-
-```bash
-adb install -r app/build/outputs/apk/direct/debug/app-direct-debug.apk
-```
-
-Setup downloads the two emulator cores (a few megabytes) on first launch, so that needs an
-internet connection.
+1. On your phone, download **`PatchBoy-<version>.apk`** from the
+   [latest release](https://github.com/sp3lllz/patchboy/releases/latest).
+2. Open it, and let your browser or file manager install apps when Android asks. Or, from a
+   computer with USB debugging on:
+   ```bash
+   adb install PatchBoy-0.1.0.apk
+   ```
+3. Open PatchBoy. Setup downloads the two emulator cores (a few megabytes), so the first launch
+   needs an internet connection.
 
 PatchBoy's package is `dev.patchboy`, so it installs alongside Titan Slot rather than over it.
+
+Release APKs are the `direct` flavour and are signed with PatchBoy's release key, whose SHA-256
+certificate fingerprint is:
+
+```
+E9:46:31:BD:EB:FC:9A:9D:B3:FB:88:EA:4F:35:D9:88:7B:A6:12:0E:09:CD:76:BD:F0:21:88:AF:CA:4E:E6:A4
+```
+
+Android only updates an app with an APK signed by the same key, so a build you made yourself
+(debug builds use your own debug key) can't be installed over a release, or the other way
+round, without uninstalling first. Each release lists its APK's SHA-256 checksum.
 
 ## First launch
 
