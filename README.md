@@ -31,7 +31,7 @@ phone from the last several years. A Bluetooth or USB gamepad or keyboard is opt
 2. Open it, and let your browser or file manager install apps when Android asks. Or, from a
    computer with USB debugging on:
    ```bash
-   adb install PatchBoy-0.4.0.apk
+   adb install PatchBoy-0.5.0.apk
    ```
 3. Open PatchBoy. Setup downloads the two emulator cores (a few megabytes), so the first launch
    needs an internet connection.
@@ -167,9 +167,10 @@ both. L and R appear for Game Boy Advance games only. Above the d-pad are the fr
 **On the shelf:** in portrait the carts are stacked top to bottom, so a tall phone shows several
 at once: swipe up and down or tap a cart to bring it to the middle, and swipe sideways (or tap
 the shelf names at the top) to switch shelves. Turn the phone and they run left to right across
-the screen instead. Either way, tap the middle cart to play (resuming where you left off) and
+the screen instead, with Cart and Settings moving up into the top corners. Carts are drawn as
+big as the screen allows. Either way, tap the middle cart to play (resuming where you left off) and
 hold it to start fresh. The big **Cart** and **Settings** buttons along the bottom open the cart
-sheet and settings. Every menu row is tappable, and Back closes whatever is open.
+sheet and settings (in portrait). Every menu row is tappable, and Back closes whatever is open.
 
 Settings, setup and the cart sheet use big touch rows by default: switches for on / off
 settings, ‹ › buttons that step through choices either way, and a back arrow at the top. With a
@@ -220,9 +221,10 @@ cutout, along with fast-forward and rewind marks. The screen stays on while a ga
 
 ## Cart art
 
-The carts PatchBoy draws are its own: the shells say **PatchBoy** (Game Boy and Game Boy Color)
-or **PatchBoy Advance**, in lettering styled after the real carts' moulding, with no Nintendo
-names or logos.
+The carts PatchBoy draws carry its own logotypes instead of Nintendo's names: **PATCHBOY** in
+heavy, wide, slanted capitals on Game Boy and Game Boy Color carts, and on Game Boy Advance
+carts the same word outlined beside **ADVANCE** on a band. They're raised in the shell's plastic
+like the real moulding, and printed under each label (white on blue for Advance).
 
 Settings > **Scrape Cart Art** dresses the whole shelf with the real printed cartridge labels,
 scanned, from slot's art set (the one slot's Cart Studio uses). Carts are found by the ROM's

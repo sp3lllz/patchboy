@@ -25,6 +25,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Spacer
 import kotlinx.coroutines.coroutineScope
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalDensity
@@ -87,7 +89,12 @@ private const val LETTER_MS = 700L
 private const val TABS_Y = 42f
 
 /** The touch menus' vertical shelf, in portrait: neighbours shrink to this and fade further out. */
-private const val V_SIDE_SCALE = 0.72f
+private const val V_SIDE_SCALE = 0.64f
+
+/** How much bigger the touch menus show carts than slot does, when there's room. */
+private const val TOUCH_ZOOM = 1.45f
+/** The tallest cart at slot's size (a Game Boy cart is 312 wide and 1.08 times as tall), in u. */
+private const val TALLEST_CART = 337f
 private const val V_GAP = 16f
 private const val V_SLOTS = 4
 
@@ -112,8 +119,12 @@ fun cartWidth(cart: Cart): Float = when (cart.platform) {
  * run left to right, as slot has them. The caption goes under the middle cart, or, stacked,
  * at [bottom].
  */
-private class Stage(val vertical: Boolean, val top: Float, val bottom: Float) {
+private class Stage(val vertical: Boolean, val top: Float, val bottom: Float, val zoom: Float = 1f) {
     val centre: Float get() = (top + bottom) / 2f
+
+    /** A cart's width and height on this stage, in px. */
+    fun width(cart: Cart, ui: Ui): Float = cartWidth(cart) * ui.u * zoom
+    fun height(cart: Cart, ui: Ui): Float = width(cart, ui) * CartArt.spec(cart.shape).aspect
 
     /** How far a cart [t] places from the middle sits from it, stacked, for carts [ch] tall. */
     fun distance(t: Float, ch: Float, u: Float): Float {
@@ -130,7 +141,16 @@ private class Stage(val vertical: Boolean, val top: Float, val bottom: Float) {
                 vertical -> chrome.bandTop - buttons - ui.px(56f)
                 else -> chrome.bandTop - buttons - ui.px(60f)
             }
-            return Stage(vertical, top, bottom)
+            // Touch menus show carts bigger, as far as the space allows: stacked, the middle
+            // cart may take half the height; in a row, all of it but the caption under it.
+            val room = if (vertical) (bottom - top) * 0.5f else bottom - top - ui.px(60f)
+            // ...and never wider than most of the screen (a GBA cart is 360 u wide).
+            val wide = ui.widthPx * 0.82f / ui.px(360f)
+            val zoom = when {
+                buttons <= 0f && !vertical -> 1f
+                else -> minOf(TOUCH_ZOOM, room / ui.px(TALLEST_CART), wide).coerceAtLeast(1f)
+            }
+            return Stage(vertical, top, bottom, zoom)
         }
     }
 }
@@ -263,7 +283,13 @@ fun ShelfScreen(app: AppState) {
     val touchMenus = LocalTouchMenus.current && touch
     val vertical = LocalTouchMenus.current && ui.heightPx > ui.widthPx
     val density = LocalDensity.current
-    val buttons = if (touchMenus) with(density) { (BUTTON_H + BUTTON_GAP + BUTTON_HINT).dp.toPx() } else 0f
+    // In landscape the buttons go up in the corners beside the tabs, leaving the height to the
+    // carts; only the hint line stays down by the slot.
+    val buttons = when {
+        !touchMenus -> 0f
+        vertical -> with(density) { (BUTTON_H + BUTTON_GAP + BUTTON_HINT).dp.toPx() }
+        else -> with(density) { (BUTTON_GAP + BUTTON_HINT).dp.toPx() }
+    }
     val stage = remember(ui, chrome, vertical, buttons) { Stage.of(ui, chrome, vertical, buttons) }
 
     val seat = remember { Animatable(0f) }
@@ -425,7 +451,7 @@ fun ShelfScreen(app: AppState) {
             if (screen.value > 0f) drawRect(Color.Black, alpha = screen.value)
         }
         if (touch && moving == null && app.overlay == null) {
-            if (touchMenus) TouchButtons(app, chrome, hasCart = shelf?.current != null)
+            if (touchMenus) TouchButtons(app, chrome, hasCart = shelf?.current != null, corners = !stage.vertical)
             else TouchHints(app, chrome, hasCart = shelf?.current != null)
         }
     }
@@ -437,17 +463,46 @@ fun ShelfScreen(app: AppState) {
  */
 private fun stackSlotAt(app: AppState, ui: Ui, stage: Stage, y: Float): Int {
     val cart = app.shelf?.current ?: return 0
-    val ch = cartWidth(cart) * ui.u * CartArt.spec(cart.shape).aspect
+    val ch = stage.height(cart, ui)
     val dy = y - stage.centre
     if (abs(dy) <= ch / 2f) return 0
     val n = (1..V_SLOTS).minBy { abs(stage.distance(it.toFloat(), ch, ui.u) - abs(dy)) }
     return n * sign(dy).toInt()
 }
 
-/** The touch menus' home buttons: full-size Cart and Settings above the slot. */
+/**
+ * The touch menus' home buttons: full-size Cart and Settings above the slot, or, with
+ * [corners], in the top corners either side of the shelf tabs.
+ */
 @Composable
-private fun TouchButtons(app: AppState, chrome: Chrome, hasCart: Boolean) {
+private fun TouchButtons(app: AppState, chrome: Chrome, hasCart: Boolean, corners: Boolean) {
     val density = LocalDensity.current
+    if (corners) {
+        val ui = LocalUi.current
+        val top = with(density) { ui.safeTop.toDp() } + 12.dp
+        Row(Modifier.fillMaxWidth().padding(top = top, start = 20.dp, end = 20.dp)) {
+            if (hasCart) TouchButton("Cart", app::openCart, Modifier.width(160.dp), primary = false)
+            Spacer(Modifier.weight(1f))
+            TouchButton("Settings", app::openSettings, Modifier.width(160.dp), primary = false)
+        }
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(with(density) { chrome.bandTop.toDp() })
+                .padding(bottom = BUTTON_GAP.dp),
+            contentAlignment = Alignment.BottomCenter,
+        ) {
+            if (hasCart) {
+                BasicText(
+                    "Tap to play · hold for a new game",
+                    modifier = Modifier.height(BUTTON_HINT.dp),
+                    style = touchText(13f, Ink.faint),
+                    maxLines = 1,
+                )
+            }
+        }
+        return
+    }
     Box(
         Modifier
             .fillMaxWidth()
@@ -515,8 +570,8 @@ private fun DrawScope.drawRow(
         val scale = 1f + (SIDE_SCALE - 1f) * t
         val alpha = (1f + (SIDE_ALPHA - 1f) * t) * (1f - recede)
         if (alpha <= 0f) continue
-        val cw = cartWidth(cart) * u
-        val ch = cw * CartArt.spec(cart.shape).aspect
+        val cw = stage.width(cart, ui)
+        val ch = stage.height(cart, ui)
         val w = cw * scale
         val h = ch * scale
         val away = sign(offset) * (1f + abs(offset))
@@ -556,8 +611,8 @@ private fun DrawScope.drawStack(
             val fade = if (t <= 1f) 1f + (SIDE_ALPHA - 1f) * t else SIDE_ALPHA * (1f - (t - 1f) * 0.28f)
             val alpha = fade.coerceAtLeast(0f) * (1f - recede)
             if (alpha <= 0f) continue
-            val cw = cartWidth(cart) * u
-            val ch = cw * CartArt.spec(cart.shape).aspect
+            val cw = stage.width(cart, ui)
+            val ch = stage.height(cart, ui)
             val w = cw * scale
             val h = ch * scale
             val y = stage.centre + sign(offset) * (stage.distance(t, ch, u) + PART * u * recede)
@@ -599,7 +654,7 @@ private fun DrawScope.drawMoving(
     scope: CoroutineScope,
 ) {
     val aspect = CartArt.spec(cart.shape).aspect
-    val w0 = cartWidth(cart) * ui.u
+    val w0 = stage.width(cart, ui)
     val h0 = w0 * aspect
     val sw = SEATED_W * ui.u
     val sh = sw * aspect
@@ -658,8 +713,7 @@ private fun DrawScope.drawCaption(shelf: ShelfModel, ui: Ui, stage: Stage, measu
     val cart = shelf.current ?: return
     val settle = 1f - min(abs(shelf.scroll - shelf.ride) * 3f, 1f)
     if (settle <= 0f) return
-    val cw = cartWidth(cart) * ui.u
-    val ch = cw * CartArt.spec(cart.shape).aspect
+    val ch = stage.height(cart, ui)
     val style = TextStyle(fontFamily = LabelFont, fontSize = ui.sp(21f), color = Ink.dim)
     val l = measurer.measure(
         cart.title, style, overflow = TextOverflow.Ellipsis, maxLines = 1,

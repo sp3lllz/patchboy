@@ -40,13 +40,15 @@ object CartArt {
     private const val FILL_BIAS = 0.3f
 
     /**
-     * What's moulded into the shells and printed under the labels. The real carts say
-     * Nintendo and Game Boy; ours say PatchBoy, so nothing reads as an official product.
+     * What's moulded into the shells and printed under the labels: the real carts say
+     * Nintendo and Game Boy, ours have PatchBoy's own logotypes (see [Logotype]).
      */
     const val BRAND = "PatchBoy"
-    const val BRAND_ADVANCE = "PatchBoy Advance"
 
-    fun brand(platform: Platform): String = if (platform == Platform.GBA) BRAND_ADVANCE else BRAND
+    /** The logo blue printed behind the Advance logotype on labels. */
+    private const val LOGO_BLUE = 0xFF2A16C8.toInt()
+
+    fun logo(platform: Platform): Logotype.Kind = if (platform == Platform.GBA) Logotype.Kind.ADVANCE else Logotype.Kind.GB
 
     class Spec(
         val vw: Float,
@@ -58,10 +60,12 @@ object CartArt {
         ridges: List<String> = emptyList(),
         /** Engraved moulding: lit from the bottom right. */
         cuts: List<String> = emptyList(),
-        val mark: String? = null,
+        /** The logotype moulded into the shell, centred on ([markX], [markY]), at most [markW] x [markH]. */
+        val mark: Logotype.Kind? = null,
         val markX: Float = vw / 2f,
         val markY: Float = 0f,
-        val markSize: Float = 0f,
+        val markW: Float = 0f,
+        val markH: Float = 0f,
         val topGloss: Boolean = false,
     ) {
         // Renders run on several threads at once, so each takes its own copies.
@@ -90,7 +94,7 @@ object CartArt {
         cuts = listOf(
             "M97.96 127.22C97.4 127.21 96.91 127.61 96.81 128.17C96.72 128.73 97.05 129.27 97.59 129.44L115.99 135.71C116.02 135.73 116.05 135.75 116.08 135.76L119.14 136.56C119.33 136.61 119.53 136.61 119.72 136.56L122.79 135.76C122.82 135.75 122.85 135.73 122.87 135.71L141.26 129.44C141.8 129.27 142.13 128.73 142.05 128.17C141.95 127.62 141.47 127.21 140.9 127.22ZM104.81 129.5L134.05 129.5L122.17 133.55L119.43 134.26L116.68 133.55Z",
         ),
-        mark = BRAND_ADVANCE, markY = 25.4f, markSize = 7.6f,
+        mark = Logotype.Kind.ADVANCE, markY = 24.6f, markW = 92f, markH = 10.5f,
     )
 
     private val GB_RIDGE_PLAQUE =
@@ -120,7 +124,7 @@ object CartArt {
             GB_RIDGE_PLAQUE,
         ),
         cuts = GB_CUTS,
-        mark = BRAND, markY = 44.6f, markSize = 13f,
+        mark = Logotype.Kind.GB, markY = 40f, markW = 104f, markH = 17f,
     )
 
     private val GB_ROUNDED = Spec(
@@ -132,7 +136,7 @@ object CartArt {
             listOf(rect(6.5f, y, 7f, 5.95f), rect(226.5f, y, 7f, 5.95f))
         } + GB_RIDGE_PLAQUE,
         cuts = GB_CUTS,
-        mark = BRAND, markY = 44.6f, markSize = 13f,
+        mark = Logotype.Kind.GB, markY = 40f, markW = 104f, markH = 17f,
         topGloss = true,
     )
 
@@ -173,7 +177,7 @@ object CartArt {
         if (spec.topGloss) drawTopGloss(c)
         spec.ridges.forEach { emboss(c, it, raised = true) }
         spec.cuts.forEach { emboss(c, it, raised = false) }
-        spec.mark?.let { drawMark(c, spec, it, typeface, base) }
+        spec.mark?.let { drawMark(c, spec, it, base) }
 
         // Label recess, then the label.
         val recess = RectF(spec.label).apply { inset(-2.6f, -2.6f) }
@@ -226,31 +230,25 @@ object CartArt {
     }
 
     /**
-     * The shell's lettering, styled like the real carts' moulding: heavy, slanted and a little
-     * stretched, raised in the shell's own plastic, so it reads by its light top-left edge and
-     * shadowed bottom-right one rather than by colour.
+     * The shell's logotype, raised in the shell's own plastic like the real carts' moulding: it
+     * reads by its light top-left edge and shadowed bottom-right one rather than by colour. The
+     * Advance logotype's outline and band are a raised plate with the letters standing on it.
      */
-    private fun drawMark(c: Canvas, spec: Spec, text: String, typeface: Typeface, base: Int) {
-        val p = moulded(typeface).apply {
-            textSize = spec.markSize
-            textAlign = Paint.Align.CENTER
-        }
-        val lift = spec.markSize * 0.06f
-        p.color = darken(base, 0.55f) and 0x00FFFFFF or (0xB0 shl 24)
-        c.drawText(text, spec.markX + lift, spec.markY + lift, p)
-        p.color = 0x70FFFFFF
-        c.drawText(text, spec.markX - lift * 0.7f, spec.markY - lift * 0.7f, p)
-        p.color = darken(base, 0.9f) or (0xFF shl 24)
-        c.drawText(text, spec.markX, spec.markY, p)
+    private fun drawMark(c: Canvas, spec: Spec, kind: Logotype.Kind, base: Int) {
+        val s = Logotype.shapes(kind, spec.markX, spec.markY, spec.markW, spec.markH)
+        val lift = spec.markH * 0.05f
+        s.backing?.let { emboss(c, it, lift, base, lighten(base, 0.1f)) }
+        emboss(c, s.letters, lift, base, if (s.backing != null) darken(base, 0.82f) else darken(base, 0.92f))
     }
 
-    /** Bold, slanted and widened, after the logotypes moulded into the real shells. */
-    private fun moulded(typeface: Typeface) = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-        this.typeface = Typeface.create(typeface, Typeface.BOLD)
-        isFakeBoldText = true
-        textSkewX = -0.24f
-        textScaleX = 1.12f
-        letterSpacing = 0.04f
+    private fun emboss(c: Canvas, path: Path, lift: Float, base: Int, face: Int) {
+        val p = Paint(Paint.ANTI_ALIAS_FLAG)
+        p.color = darken(base, 0.5f) and 0x00FFFFFF or (0xB0 shl 24)
+        c.withTranslation(lift, lift) { drawPath(path, p) }
+        p.color = 0x66FFFFFF
+        c.withTranslation(-lift * 0.7f, -lift * 0.7f) { drawPath(path, p) }
+        p.color = face or (0xFF shl 24)
+        c.drawPath(path, p)
     }
 
     /** Clear plastic shows the board through it. */
@@ -325,13 +323,16 @@ object CartArt {
             layout.draw(this)
         }
 
-        // The printed label carries the same logotype, smaller.
-        val small = moulded(typeface).apply {
-            textSize = r.height() * 0.08f
-            textAlign = Paint.Align.CENTER
-            color = ink and 0x00FFFFFF or (0xB0 shl 24)
+        // The printed label carries the logotype too: in the label's ink for Game Boy, and white
+        // on its blue outline and band for Advance, as the real logos are printed.
+        val kind = logo(cart.platform)
+        val logoH = r.height() * if (kind == Logotype.Kind.ADVANCE) 0.11f else 0.085f
+        val logoCy = r.bottom - r.height() * 0.1f
+        if (kind == Logotype.Kind.ADVANCE) {
+            Logotype.print(c, kind, r.centerX(), logoCy, r.width() * 0.8f, logoH, 0xFFFFFFFF.toInt(), LOGO_BLUE)
+        } else {
+            Logotype.print(c, kind, r.centerX(), logoCy, r.width() * 0.6f, logoH, ink and 0x00FFFFFF or (0xC0 shl 24), 0)
         }
-        c.drawText(brand(cart.platform), r.centerX(), r.bottom - r.height() * 0.07f, small)
     }
 
     /**
