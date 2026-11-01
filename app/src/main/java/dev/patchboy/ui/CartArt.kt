@@ -20,6 +20,7 @@ import androidx.core.graphics.get
 import androidx.core.graphics.scale
 import androidx.core.graphics.withClip
 import androidx.core.graphics.withTranslation
+import dev.patchboy.core.Platform
 import dev.patchboy.data.ArtFit
 import dev.patchboy.data.Cart
 import dev.patchboy.data.CartShape
@@ -37,6 +38,15 @@ import kotlin.math.roundToInt
  */
 object CartArt {
     private const val FILL_BIAS = 0.3f
+
+    /**
+     * What's moulded into the shells and printed under the labels. The real carts say
+     * Nintendo and Game Boy; ours say PatchBoy, so nothing reads as an official product.
+     */
+    const val BRAND = "PatchBoy"
+    const val BRAND_ADVANCE = "PatchBoy Advance"
+
+    fun brand(platform: Platform): String = if (platform == Platform.GBA) BRAND_ADVANCE else BRAND
 
     class Spec(
         val vw: Float,
@@ -80,7 +90,7 @@ object CartArt {
         cuts = listOf(
             "M97.96 127.22C97.4 127.21 96.91 127.61 96.81 128.17C96.72 128.73 97.05 129.27 97.59 129.44L115.99 135.71C116.02 135.73 116.05 135.75 116.08 135.76L119.14 136.56C119.33 136.61 119.53 136.61 119.72 136.56L122.79 135.76C122.82 135.75 122.85 135.73 122.87 135.71L141.26 129.44C141.8 129.27 142.13 128.73 142.05 128.17C141.95 127.62 141.47 127.21 140.9 127.22ZM104.81 129.5L134.05 129.5L122.17 133.55L119.43 134.26L116.68 133.55Z",
         ),
-        mark = "GAME BOY ADVANCE", markY = 25.4f, markSize = 7.2f,
+        mark = BRAND_ADVANCE, markY = 25.4f, markSize = 7.6f,
     )
 
     private val GB_RIDGE_PLAQUE =
@@ -110,7 +120,7 @@ object CartArt {
             GB_RIDGE_PLAQUE,
         ),
         cuts = GB_CUTS,
-        mark = "Nintendo GAME BOY", markY = 44.6f, markSize = 11f,
+        mark = BRAND, markY = 44.6f, markSize = 13f,
     )
 
     private val GB_ROUNDED = Spec(
@@ -122,7 +132,7 @@ object CartArt {
             listOf(rect(6.5f, y, 7f, 5.95f), rect(226.5f, y, 7f, 5.95f))
         } + GB_RIDGE_PLAQUE,
         cuts = GB_CUTS,
-        mark = "GAME BOY COLOR", markY = 44.6f, markSize = 11f,
+        mark = BRAND, markY = 44.6f, markSize = 13f,
         topGloss = true,
     )
 
@@ -215,17 +225,32 @@ object CartArt {
         }
     }
 
+    /**
+     * The shell's lettering, styled like the real carts' moulding: heavy, slanted and a little
+     * stretched, raised in the shell's own plastic, so it reads by its light top-left edge and
+     * shadowed bottom-right one rather than by colour.
+     */
     private fun drawMark(c: Canvas, spec: Spec, text: String, typeface: Typeface, base: Int) {
-        val p = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-            this.typeface = Typeface.create(typeface, Typeface.BOLD)
+        val p = moulded(typeface).apply {
             textSize = spec.markSize
             textAlign = Paint.Align.CENTER
-            letterSpacing = 0.12f
         }
-        p.color = 0x30FFFFFF
-        c.drawText(text, spec.markX + 0.5f, spec.markY + 0.5f, p)
-        p.color = darken(base, 0.7f) and 0x00FFFFFF or (0xD0 shl 24)
+        val lift = spec.markSize * 0.06f
+        p.color = darken(base, 0.55f) and 0x00FFFFFF or (0xB0 shl 24)
+        c.drawText(text, spec.markX + lift, spec.markY + lift, p)
+        p.color = 0x70FFFFFF
+        c.drawText(text, spec.markX - lift * 0.7f, spec.markY - lift * 0.7f, p)
+        p.color = darken(base, 0.9f) or (0xFF shl 24)
         c.drawText(text, spec.markX, spec.markY, p)
+    }
+
+    /** Bold, slanted and widened, after the logotypes moulded into the real shells. */
+    private fun moulded(typeface: Typeface) = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+        this.typeface = Typeface.create(typeface, Typeface.BOLD)
+        isFakeBoldText = true
+        textSkewX = -0.24f
+        textScaleX = 1.12f
+        letterSpacing = 0.04f
     }
 
     /** Clear plastic shows the board through it. */
@@ -300,14 +325,13 @@ object CartArt {
             layout.draw(this)
         }
 
-        val small = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-            this.typeface = typeface
-            textSize = r.height() * 0.075f
+        // The printed label carries the same logotype, smaller.
+        val small = moulded(typeface).apply {
+            textSize = r.height() * 0.08f
             textAlign = Paint.Align.CENTER
-            letterSpacing = 0.18f
-            color = ink and 0x00FFFFFF or (0x99 shl 24)
+            color = ink and 0x00FFFFFF or (0xB0 shl 24)
         }
-        c.drawText(cart.platform.title.uppercase(), r.centerX(), r.bottom - r.height() * 0.07f, small)
+        c.drawText(brand(cart.platform), r.centerX(), r.bottom - r.height() * 0.07f, small)
     }
 
     /**

@@ -31,7 +31,7 @@ phone from the last several years. A Bluetooth or USB gamepad or keyboard is opt
 2. Open it, and let your browser or file manager install apps when Android asks. Or, from a
    computer with USB debugging on:
    ```bash
-   adb install PatchBoy-0.3.0.apk
+   adb install PatchBoy-0.4.0.apk
    ```
 3. Open PatchBoy. Setup downloads the two emulator cores (a few megabytes), so the first launch
    needs an internet connection.
@@ -174,7 +174,7 @@ sheet and settings. Every menu row is tappable, and Back closes whatever is open
 Settings, setup and the cart sheet use big touch rows by default: switches for on / off
 settings, ‹ › buttons that step through choices either way, and a back arrow at the top. With a
 controller, Settings > **Menu Style** > **Classic** brings back slot's compact list, made for
-d-pad navigation, and its original portrait shelf with the carts in one row. (Touch menus work with a controller too; the row you're on lights up while
+d-pad navigation, and slot's shelf with the carts in one row (it turns with the phone too). (Touch menus work with a controller too; the row you're on lights up while
 one is connected.)
 
 Settings has **Touch Controls** (Auto, On or Off), **Touch Size** (Small, Medium, Large),
@@ -219,6 +219,10 @@ The clock and battery sit above the picture while you play in portrait, clear of
 cutout, along with fast-forward and rewind marks. The screen stays on while a game runs and may sleep when it's paused.
 
 ## Cart art
+
+The carts PatchBoy draws are its own: the shells say **PatchBoy** (Game Boy and Game Boy Color)
+or **PatchBoy Advance**, in lettering styled after the real carts' moulding, with no Nintendo
+names or logos.
 
 Settings > **Scrape Cart Art** dresses the whole shelf with the real printed cartridge labels,
 scanned, from slot's art set (the one slot's Cart Studio uses). Carts are found by the ROM's

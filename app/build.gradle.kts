@@ -24,8 +24,8 @@ android {
         applicationId = "dev.patchboy"
         minSdk = 30
         targetSdk = 36
-        versionCode = 3
-        versionName = "0.3.0"
+        versionCode = 4
+        versionName = "0.4.0"
         // The libretro cores are arm64 builds, which covers nearly every phone still in use.
         ndk { abiFilters += "arm64-v8a" }
     }

@@ -3,7 +3,6 @@ package dev.patchboy
 import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
 import android.content.Intent
-import android.content.pm.ActivityInfo
 import android.net.Uri
 import android.os.Bundle
 import android.view.KeyEvent
@@ -13,7 +12,6 @@ import androidx.activity.addCallback
 import androidx.activity.compose.setContent
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.runtime.snapshotFlow
 import androidx.core.app.ActivityOptionsCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -27,7 +25,6 @@ import dev.patchboy.core.Core
 import dev.patchboy.core.Delivery
 import dev.patchboy.data.Cart
 import dev.patchboy.data.Importer
-import dev.patchboy.data.MenuStyle
 import dev.patchboy.data.Paths
 import dev.patchboy.data.Settings
 import dev.patchboy.data.Storage
@@ -36,7 +33,6 @@ import dev.patchboy.input.KeyMap
 import dev.patchboy.input.KeyRouter
 import dev.patchboy.ui.PatchBoyApp
 import java.io.InputStream
-import kotlinx.coroutines.launch
 
 /** The shelf. Games run in [GameActivity], launched once a cart is all the way in. */
 class MainActivity : ComponentActivity(), Host {
@@ -89,16 +85,6 @@ class MainActivity : ComponentActivity(), Host {
             cores = Delivery.installer(this),
         )
         onBackPressedDispatcher.addCallback(this) { app.onBack() }
-        // The touch menus' shelf works both ways up; slot's Classic one is laid out for portrait.
-        lifecycleScope.launch {
-            snapshotFlow { app.settings.menuStyle }.collect { style ->
-                requestedOrientation = if (style == MenuStyle.TOUCH) {
-                    ActivityInfo.SCREEN_ORIENTATION_FULL_USER
-                } else {
-                    ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                }
-            }
-        }
         setContent { PatchBoyApp(app) }
     }
 

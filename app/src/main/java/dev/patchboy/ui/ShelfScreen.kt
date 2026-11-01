@@ -671,7 +671,8 @@ private fun DrawScope.drawCaption(shelf: ShelfModel, ui: Ui, stage: Stage, measu
 
 private fun DrawScope.drawSlotName(app: AppState, ui: Ui, chrome: Chrome, measurer: TextMeasurer) {
     val letter = app.letter
-    val text = letter?.first?.toString() ?: app.shelf?.platform?.title?.uppercase() ?: return
+    if (letter == null && app.shelf == null) return
+    val text = letter?.first?.toString() ?: CartArt.BRAND.uppercase()
     val style = TextStyle(
         fontFamily = LabelFont,
         fontSize = ui.sp(if (letter != null) 22f else 10f),
